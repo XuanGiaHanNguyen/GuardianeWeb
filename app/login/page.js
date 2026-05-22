@@ -164,7 +164,7 @@ export default function LoginPage() {
             </div>
 
             {/* Footer */}
-            <div className="mt-6 border-t border-[var(--border)] pt-4 text-center text-[0.7rem] leading-relaxed text-[var(--muted)]">
+            <div className=" pt-4 text-center text-[0.7rem] leading-relaxed text-[var(--muted)]">
               Protected by 256-bit encryption&nbsp;·&nbsp;
               <Link href="#" className="text-[var(--accent)] no-underline hover:underline">Privacy Policy</Link>
               &nbsp;·&nbsp;
