@@ -33,19 +33,7 @@ export default function LoginPage() {
 
     setIsLoading(true)
     try {
-      const { user, profile } = await signIn(email, password)
-      console.log('[GUARDIANE-DB] login: signed-in user →', user)
-      console.log('[GUARDIANE-DB] login: user.toJSON() →', user.toJSON())
-      console.log('[GUARDIANE-DB] login: Firestore profile →', profile)
-      console.log('[GUARDIANE-DB] login: providerData →', user.providerData)
-      console.log('[GUARDIANE-DB] login: metadata →', user.metadata)
-      try {
-        const tokenResult = await user.getIdTokenResult()
-        console.log('[GUARDIANE-DB] login: ID token (JWT) →', tokenResult.token)
-        console.log('[GUARDIANE-DB] login: token claims →', tokenResult.claims)
-      } catch (e) {
-        console.log('[GUARDIANE-DB] login: could not fetch token →', e)
-      }
+      await signIn(email, password)
       router.push('/dashboard')
     } catch (err) {
       // Map Firebase error codes to friendly messages

@@ -22,7 +22,6 @@ import { createUserProfile, getUserProfile } from './database'
 export async function signIn(email, password) {
   const credential = await signInWithEmailAndPassword(auth, email, password)
   const profile = await getUserProfile(credential.user.uid)
-  console.log('[GUARDIANE-DB] authHelper.signIn → user:', credential.user.uid, 'profile:', profile)
   return { user: credential.user, profile }
 }
 
@@ -46,7 +45,6 @@ export async function signUp(email, password, displayName, extras = {}) {
     numChildren: Number(numChildren) || 0,
   })
   const profile = await getUserProfile(credential.user.uid)
-  console.log('[GUARDIANE-DB] authHelper.signUp → user:', credential.user.uid, 'profile:', profile)
   return { user: credential.user, profile }
 }
 

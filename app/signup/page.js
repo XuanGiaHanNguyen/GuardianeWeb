@@ -68,14 +68,12 @@ export default function SignupPage() {
 
     setIsLoading(true)
     try {
-      const { user, profile } = await signUp(
+      await signUp(
         email,
         password,
         `${firstName} ${lastName}`.trim(),
         { firstName, lastName, numChildren },
       )
-      console.log('[GUARDIANE-DB] signup: new user →', user)
-      console.log('[GUARDIANE-DB] signup: Firestore profile →', profile)
       router.push('/onboarding')
     } catch (err) {
       const code = err?.code ?? ''

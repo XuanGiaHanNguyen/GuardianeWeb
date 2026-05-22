@@ -1,23 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Sidebar } from "./components/sidebar";
 import { OverviewTab } from "./components/overview-tab";
 import { PlaceholderTab } from "./components/placeholder-tab";
 import { placeholderTabLabels } from "./data/nav";
 import { AuthGuard } from "../../components/auth-guard";
-import { useAuth } from "../context/AuthContext";
 
 export default function DashboardPage() {
   const [activeNav, setActiveNav] = useState("overview");
   const [selectedChild, setSelectedChild] = useState("sophia");
-  const { user, userProfile, loading } = useAuth();
-
-  useEffect(() => {
-    if (loading) return;
-    console.log("[GUARDIANE-DB] dashboard: Firebase user →", user);
-    console.log("[GUARDIANE-DB] dashboard: Firestore profile →", userProfile);
-  }, [loading, user, userProfile]);
 
   const renderContent = () => {
     if (activeNav === "overview") return <OverviewTab />;

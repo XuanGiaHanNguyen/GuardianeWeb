@@ -1,18 +1,3 @@
-// lib/database.js
-//
-// Web parallel to the iOS DatabaseService. All Firestore access for the parent
-// portal goes through this module so the app has one place to evolve schema,
-// add caching, swap to admin SDK on the server, etc.
-//
-// Collections (mirrors iOS):
-//   users               — parent and child profiles ({ role: 'parent' | 'child' })
-//   modules             — learning modules
-//   learning_progress   — per-child module progress
-//   messages            — chat messages (parent ↔ child, parent ↔ counselor)
-//   screen_time_entries — raw screen-time samples reported by the child device
-//
-// All "listen*" helpers return the Firestore unsubscribe function — caller is
-// responsible for invoking it on unmount.
 
 import {
   collection,
@@ -57,22 +42,18 @@ export async function createUserProfile(uid, data) {
     },
     { merge: true },
   )
-  console.log('[GUARDIANE-DB] createUserProfile →', uid, data)
 }
 
 /** Patch a user profile document. */
 export async function updateUserProfile(uid, patch) {
   const ref = doc(db, COLLECTIONS.USERS, uid)
   await updateDoc(ref, { ...patch, updatedAt: serverTimestamp() })
-  console.log('[GUARDIANE-DB] updateUserProfile →', uid, patch)
 }
 
 /** Fetch a single user profile. Returns null if the doc doesn't exist. */
 export async function getUserProfile(uid) {
   const snap = await getDoc(doc(db, COLLECTIONS.USERS, uid))
-  const data = snap.exists() ? { id: snap.id, ...snap.data() } : null
-  console.log('[GUARDIANE-DB] getUserProfile ←', uid, data)
-  return data
+  return snap.exists() ? { id: snap.id, ...snap.data() } : null
 }
 
 /** Return every child profile linked to this parent (users where parentId == uid). */
@@ -83,9 +64,7 @@ export async function getChildrenForParent(parentUid) {
     where('parentId', '==', parentUid),
   )
   const snap = await getDocs(q)
-  const children = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-  console.log('[GUARDIANE-DB] getChildrenForParent ←', parentUid, children)
-  return children
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
 }
 
 // ─── Modules & learning progress ─────────────────────────────────────────────
@@ -93,9 +72,7 @@ export async function getChildrenForParent(parentUid) {
 /** Get every module document. */
 export async function getModules() {
   const snap = await getDocs(collection(db, COLLECTIONS.MODULES))
-  const modules = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-  console.log('[GUARDIANE-DB] getModules ←', modules)
-  return modules
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
 }
 
 /** Get a single child's learning_progress documents. */
@@ -105,9 +82,7 @@ export async function getChildLearningProgress(childUid) {
     where('childId', '==', childUid),
   )
   const snap = await getDocs(q)
-  const progress = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-  console.log('[GUARDIANE-DB] getChildLearningProgress ←', childUid, progress)
-  return progress
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
 }
 
 // ─── Messages (real-time) ────────────────────────────────────────────────────
@@ -125,7 +100,6 @@ export function listenToMessages(conversationId, callback) {
   )
   const unsub = onSnapshot(q, (snap) => {
     const messages = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-    console.log('[GUARDIANE-DB] listenToMessages →', conversationId, messages)
     callback(messages)
   })
   return unsub
@@ -140,7 +114,6 @@ export async function sendMessage({ conversationId, senderId, recipientId, body 
     body,
     createdAt: serverTimestamp(),
   })
-  console.log('[GUARDIANE-DB] sendMessage →', ref.id, { conversationId, senderId, recipientId })
   return ref.id
 }
 
@@ -167,9 +140,7 @@ export async function getChildScreenTimeReport(childUid, { from, to } = {}) {
     byApp[e.appName || 'unknown'] = (byApp[e.appName || 'unknown'] || 0) + mins
   }
 
-  const report = { childUid, totalMinutes, byApp, entries }
-  console.log('[GUARDIANE-DB] getChildScreenTimeReport ←', report)
-  return report
+  return { childUid, totalMinutes, byApp, entries }
 }
 
 /** Add one screen-time entry (typically called from the child device app). */
@@ -178,7 +149,6 @@ export async function addScreenTimeEntry(entry) {
     ...entry,
     createdAt: serverTimestamp(),
   })
-  console.log('[GUARDIANE-DB] addScreenTimeEntry →', ref.id, entry)
   return ref.id
 }
 
@@ -190,9 +160,7 @@ export async function getEmergencyContacts(parentUid) {
   const snap = await getDocs(
     collection(db, COLLECTIONS.USERS, parentUid, COLLECTIONS.EMERGENCY_CONTACTS),
   )
-  const contacts = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-  console.log('[GUARDIANE-DB] getEmergencyContacts ←', parentUid, contacts)
-  return contacts
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
 }
 
 /** Add an emergency contact to a parent profile. */
@@ -201,7 +169,6 @@ export async function addEmergencyContact(parentUid, contact) {
     collection(db, COLLECTIONS.USERS, parentUid, COLLECTIONS.EMERGENCY_CONTACTS),
     { ...contact, createdAt: serverTimestamp() },
   )
-  console.log('[GUARDIANE-DB] addEmergencyContact →', ref.id, contact)
   return ref.id
 }
 
@@ -210,7 +177,6 @@ export async function deleteEmergencyContact(parentUid, contactId) {
   await deleteDoc(
     doc(db, COLLECTIONS.USERS, parentUid, COLLECTIONS.EMERGENCY_CONTACTS, contactId),
   )
-  console.log('[GUARDIANE-DB] deleteEmergencyContact →', parentUid, contactId)
 }
 
 // ─── Generic real-time helper ────────────────────────────────────────────────
@@ -223,7 +189,6 @@ export function listenToDoc(path, callback) {
   const ref = doc(db, ...path.split('/'))
   return onSnapshot(ref, (snap) => {
     const data = snap.exists() ? { id: snap.id, ...snap.data() } : null
-    console.log('[GUARDIANE-DB] listenToDoc →', path, data)
     callback(data)
   })
 }
