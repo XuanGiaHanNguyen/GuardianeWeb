@@ -208,11 +208,16 @@ export async function getAlertsForFamily(familyId, { activeOnly = false, max = 2
   return rows.slice(0, max)
 }
 
-/** Assignments for a family. */
+/** Active assignments for a family. Matches iOS `getAssignments(familyId:)` —
+ * filtered to isActive=true so soft-deleted rows are excluded. */
 export async function getAssignmentsForFamily(familyId) {
   if (!familyId) return []
   const snap = await getDocs(
-    query(collection(db, COLLECTIONS.ASSIGNMENTS), where('familyId', '==', familyId)),
+    query(
+      collection(db, COLLECTIONS.ASSIGNMENTS),
+      where('familyId', '==', familyId),
+      where('isActive', '==', true),
+    ),
   )
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
 }

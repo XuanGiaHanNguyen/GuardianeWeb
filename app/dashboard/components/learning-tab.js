@@ -427,6 +427,7 @@ export function LearningTab({ data }) {
           moduleId={activeModuleId}
           childList={childList}
           parentId={uid}
+          familyId={userProfile?.familyId}
           onBack={backToHub}
           onAssigned={refresh}
           onOpenLesson={openLesson}

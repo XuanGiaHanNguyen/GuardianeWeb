@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   getModuleWithLessons,
-  assignModuleToChild,
+  assignModule,
   MODULE_CATEGORIES,
 } from "../../lib/learningModules";
 
@@ -65,6 +65,7 @@ export function ModuleDetailView({
   moduleId,
   childList = [],
   parentId,
+  familyId,
   onBack,
   onAssigned,
   onOpenLesson,
@@ -98,14 +99,18 @@ export function ModuleDetailView({
 
   async function handleAssign(childId) {
     if (!module_ || !parentId) return;
+    if (!familyId) {
+      setAssignError("Family not set up yet — finish onboarding first.");
+      return;
+    }
     setAssigningChildId(childId);
     setAssignError(null);
     try {
-      await assignModuleToChild({
-        parentId,
-        childId,
+      await assignModule({
         moduleId: module_.id,
-        category: module_.category || MODULE_CATEGORIES.CHILD,
+        childId,
+        parentId,
+        familyId,
       });
       onAssigned?.();
     } catch (err) {

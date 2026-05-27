@@ -14,11 +14,15 @@ import {
   getDoc,
   getDocs,
   setDoc,
+  addDoc,
   updateDoc,
   query,
   where,
+  orderBy,
+  onSnapshot,
   writeBatch,
   serverTimestamp,
+  Timestamp,
 } from 'firebase/firestore'
 import { db } from './firebase'
 
@@ -42,8 +46,21 @@ export const QUESTION_TYPES = {
 
 const MODULES = 'modules'
 const LESSONS = 'lessons'
-const MODULE_ASSIGNMENTS = 'module_assignments'
+const ASSIGNMENTS = 'assignments'
 const LEARNING_PROGRESS = 'learning_progress'
+
+export const ASSIGNMENT_PRIORITY = {
+  LOW: 'low',
+  MEDIUM: 'medium',
+  HIGH: 'high',
+}
+
+export const ASSIGNMENT_STATUS = {
+  ASSIGNED: 'assigned',
+  IN_PROGRESS: 'in_progress',
+  COMPLETED: 'completed',
+  OVERDUE: 'overdue',
+}
 
 function trim(value) {
   return typeof value === 'string' ? value.trim() : ''
@@ -290,53 +307,158 @@ export async function updateModuleLessonCount(moduleId) {
 }
 
 // ─── Assignments ─────────────────────────────────────────────────────────────
+//
+// Mirrors iOS Module Assignment (FirebaseService.createAssignment +
+// ModuleAssignmentViewModel). Writes to the `assignments` collection with the
+// full schema: priority / dueDate / status / isActive / privacyLevel / etc.
+// Soft delete via isActive=false (matches iOS deleteAssignment).
 
 /**
- * Mirrors Swift `assignModuleToChild(...)`. Uses a deterministic
- * `{childId}_{moduleId}` document id so re-assigning is idempotent.
+ * Create a new assignment. Mirrors Swift `FirebaseService.createAssignment`.
+ * Caller is responsible for passing `familyId` (read from the parent's user
+ * profile). `dueDate`, if provided, should be a JS Date or null.
  */
-export async function assignModuleToChild({
-  parentId,
-  childId,
+export async function assignModule({
   moduleId,
-  category = MODULE_CATEGORIES.CHILD,
+  childId,
+  parentId,
+  familyId,
+  priority = ASSIGNMENT_PRIORITY.MEDIUM,
+  dueDate = null,
 }) {
-  const assignmentId = `${childId}_${moduleId}`
-  const ref = doc(db, MODULE_ASSIGNMENTS, assignmentId)
-  await setDoc(
-    ref,
-    {
-      parentId,
-      childId,
-      moduleId,
-      category: category === MODULE_CATEGORIES.CHILD ? MODULE_CATEGORIES.CHILD : MODULE_CATEGORIES.PARENT,
-      assignedAt: serverTimestamp(),
-      isCompleted: false,
-      progress: 0,
-      completedLessonIds: [],
-    },
-    { merge: true },
-  )
-  return assignmentId
-}
+  if (!moduleId) throw new Error('moduleId is required')
+  if (!childId) throw new Error('childId is required')
+  if (!parentId) throw new Error('parentId is required')
+  if (!familyId) throw new Error('familyId is required')
 
-export async function isModuleAssignedToChild(childId, moduleId) {
-  const snap = await getDoc(doc(db, MODULE_ASSIGNMENTS, `${childId}_${moduleId}`))
-  return snap.exists()
+  const data = {
+    moduleId,
+    childId,
+    parentId,
+    familyId,
+    assignedAt: serverTimestamp(),
+    isCompleted: false,
+    isActive: true,
+    progress: 0,
+    priority,
+    status: ASSIGNMENT_STATUS.ASSIGNED,
+    privacyLevel: 'standard',
+  }
+  if (dueDate instanceof Date) {
+    data.dueDate = Timestamp.fromDate(dueDate)
+  }
+
+  const ref = await addDoc(collection(db, ASSIGNMENTS), data)
+  return ref.id
 }
 
 /**
- * Fetch every assignment created by this parent. Used by the Modules tab to
- * show a roll-up across all children.
+ * Mirrors iOS `FirebaseService.getAssignments(familyId:)` — filter by family,
+ * isActive=true, newest first.
  */
-export async function getAssignmentsForParent(parentId) {
+export async function getAssignmentsForFamily(familyId) {
+  if (!familyId) return []
   const snap = await getDocs(
-    query(collection(db, MODULE_ASSIGNMENTS), where('parentId', '==', parentId)),
+    query(
+      collection(db, ASSIGNMENTS),
+      where('familyId', '==', familyId),
+      where('isActive', '==', true),
+    ),
   )
   const rows = snap.docs.map(withId)
-  return rows.sort(
-    (a, b) => tsMillis(b.assignedAt) - tsMillis(a.assignedAt),
+  return rows.sort((a, b) => tsMillis(b.assignedAt) - tsMillis(a.assignedAt))
+}
+
+/**
+ * Real-time listener. Mirrors iOS `FirebaseService.listenToAssignments`.
+ * `onUpdate` receives the array of assignments. `onError` is called on snapshot
+ * errors. Returns an unsubscribe function.
+ */
+export function listenToAssignments(parentId, onUpdate, onError) {
+  if (!parentId) return () => {}
+  const q = query(
+    collection(db, ASSIGNMENTS),
+    where('parentId', '==', parentId),
+    where('isActive', '==', true),
   )
+  return onSnapshot(
+    q,
+    (snap) => {
+      const rows = snap.docs
+        .map(withId)
+        .sort((a, b) => tsMillis(b.assignedAt) - tsMillis(a.assignedAt))
+      onUpdate?.(rows)
+    },
+    (err) => onError?.(err),
+  )
+}
+
+/**
+ * Generic update. Mirrors iOS `FirebaseService.updateAssignment`.
+ */
+export async function updateAssignment(assignmentId, data) {
+  await updateDoc(doc(db, ASSIGNMENTS, assignmentId), data)
+}
+
+/**
+ * Set progress and derive status / isCompleted from the value. Matches
+ * Swift `ModuleAssignmentViewModel.updateAssignmentProgress`.
+ */
+export async function updateAssignmentProgress(assignmentId, progress) {
+  const clamped = Math.max(0, Math.min(1, Number(progress) || 0))
+  const isComplete = clamped >= 1
+  await updateAssignment(assignmentId, {
+    progress: clamped,
+    isCompleted: isComplete,
+    status: isComplete
+      ? ASSIGNMENT_STATUS.COMPLETED
+      : clamped > 0
+      ? ASSIGNMENT_STATUS.IN_PROGRESS
+      : ASSIGNMENT_STATUS.ASSIGNED,
+  })
+}
+
+/**
+ * Mirrors Swift `completeModule(assignmentId:quizScore:timeSpent:)`.
+ */
+export async function completeAssignment(assignmentId, { quizScore = null, timeSpent = null } = {}) {
+  const data = {
+    progress: 1,
+    isCompleted: true,
+    status: ASSIGNMENT_STATUS.COMPLETED,
+    completedAt: serverTimestamp(),
+  }
+  if (quizScore != null) data.quizScore = quizScore
+  if (timeSpent != null) data.timeSpent = timeSpent
+  await updateAssignment(assignmentId, data)
+}
+
+/**
+ * Soft delete by flipping isActive=false. Matches iOS `deleteAssignment`.
+ */
+export async function softDeleteAssignment(assignmentId) {
+  await updateAssignment(assignmentId, { isActive: false })
+}
+
+/**
+ * True if the assignment has a dueDate in the past and is not completed.
+ */
+export function isAssignmentOverdue(assignment) {
+  if (!assignment || assignment.isCompleted) return false
+  const due = assignment.dueDate
+  if (!due) return false
+  const ms = typeof due.toMillis === 'function' ? due.toMillis() : new Date(due).getTime()
+  return Number.isFinite(ms) && ms < Date.now()
+}
+
+/**
+ * Returns the effective status, taking overdue into account.
+ */
+export function effectiveAssignmentStatus(assignment) {
+  if (!assignment) return ASSIGNMENT_STATUS.ASSIGNED
+  if (assignment.isCompleted) return ASSIGNMENT_STATUS.COMPLETED
+  if (isAssignmentOverdue(assignment)) return ASSIGNMENT_STATUS.OVERDUE
+  return assignment.status || ASSIGNMENT_STATUS.ASSIGNED
 }
 
 // ─── Progress ────────────────────────────────────────────────────────────────
