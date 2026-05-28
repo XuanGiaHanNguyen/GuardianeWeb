@@ -5,9 +5,11 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 
 import { ThemeToggle } from './theme-toggle'
+import { NotificationPanel } from './notification-panel'
 import { mainNavLinks } from '../lib/siteConfig'
 import { logOut } from '../app/lib/authHelper'
 import { useAuth } from '../app/context/AuthContext'
+import { useNotifications } from '../app/lib/useNotifications'
 
 function getDisplayName(user, profile) {
   if (profile?.fullName && profile.fullName.trim()) return profile.fullName
@@ -172,6 +174,51 @@ function ProfileMenu({ user, profile, compact = false }) {
   )
 }
 
+function NotificationsBell() {
+  const [open, setOpen] = useState(false)
+  const { unreadCount } = useNotifications()
+  const wrapperRef = useRef(null)
+
+  return (
+    <div ref={wrapperRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-label={
+          unreadCount > 0
+            ? `Notifications — ${unreadCount} unread`
+            : 'Notifications'
+        }
+        className="relative flex h-7 w-7 items-center justify-center rounded-sm text-[var(--muted)] transition-colors hover:bg-white/5 hover:text-[var(--foreground)]"
+      >
+        <svg
+          width="14"
+          height="14"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          viewBox="0 0 24 24"
+        >
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+        </svg>
+
+        {unreadCount > 0 && (
+          <span className="absolute -right-0.5 -top-0.5 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-red-500 px-1 text-[8px] font-semibold leading-none text-white">
+            {unreadCount > 9 ? '9+' : unreadCount}
+          </span>
+        )}
+      </button>
+
+      <NotificationPanel open={open} onClose={() => setOpen(false)} />
+    </div>
+  )
+}
+
 export function SiteHeader() {
   const pathname = usePathname()
   const { user, userProfile } = useAuth()
@@ -231,23 +278,7 @@ export function SiteHeader() {
           </button>
 
           {/* Notifications */}
-          <button className="relative flex h-7 w-7 items-center justify-center rounded-sm text-[var(--muted)] transition-colors hover:bg-white/5 hover:text-[var(--foreground)]">
-            <svg
-              width="14"
-              height="14"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              viewBox="0 0 24 24"
-            >
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-            </svg>
-
-            <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-red-500" />
-          </button>
+          <NotificationsBell />
 
           {/* Profile dropdown */}
           <ProfileMenu user={user} profile={userProfile} />

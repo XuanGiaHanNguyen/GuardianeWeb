@@ -3,6 +3,7 @@ import "./globals.css";
 import { RevealObserver } from "../components/reveal-observer";
 import { SiteHeader } from "../components/site-header";
 import { AuthProvider } from "./context/AuthContext";
+import { NotificationsProvider } from "./lib/useNotifications";
 
 const epilogue = Epilogue({
   variable: "--font-epilogue",
@@ -42,9 +43,11 @@ export default function RootLayout({ children }) {
         suppressHydrationWarning
       >
         <AuthProvider>
-          <RevealObserver />
-          <SiteHeader />
-          {children}
+          <NotificationsProvider>
+            <RevealObserver />
+            <SiteHeader />
+            {children}
+          </NotificationsProvider>
         </AuthProvider>
       </body>
     </html>

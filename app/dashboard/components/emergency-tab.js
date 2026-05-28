@@ -436,17 +436,19 @@ export function EmergencyTab({ data }) {
           </div>
         )}
 
-        <EmergencyStatusCard
-          activeSOS={activeSOS}
-          criticalCount={critical.length}
-          onCall={() => setCallOpen(true)}
-        />
-        <EmergencyActions
-          onBeacon={() => {}}
-          onChat={() => setChatOpen(true)}
-          onCall={() => setCallOpen(true)}
-        />
+        
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <EmergencyStatusCard
+            activeSOS={activeSOS}
+            criticalCount={critical.length}
+            onCall={() => setCallOpen(true)}
+          />
+          <EmergencyActions
+            onBeacon={() => {}}
+            onChat={() => setChatOpen(true)}
+            onCall={() => setCallOpen(true)}
+          />
+
           <EscalationProtocol steps={DEFAULT_ESCALATION_CHAIN} />
           <AllAlerts
             incidents={incidents}
