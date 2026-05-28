@@ -1,8 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "../../context/AuthContext";
+import { usePreference, useDarkMode } from "../../lib/preferences";
+import { ChildFormModal } from "./child-form-modal";
+import { EditNameModal } from "./edit-name-modal";
+import { DeleteAccountModal } from "./delete-account-modal";
+import { SupportModal } from "./support-modal";
 
-const DANGER = "#EF4444";
+const APP_VERSION = "1.0.0 (web)";
 
 const AVATAR_PALETTE = [
   { fg: "#3B82F6", bg: "rgba(59, 130, 246, 0.18)" },
@@ -19,15 +26,6 @@ function colorForName(name = "") {
   return AVATAR_PALETTE[hash % AVATAR_PALETTE.length];
 }
 
-function gradeFromAge(age) {
-  if (typeof age !== "number") return null;
-  const grade = age - 5;
-  if (grade < 1) return "Pre-K";
-  const suffix =
-    grade === 1 ? "st" : grade === 2 ? "nd" : grade === 3 ? "rd" : "th";
-  return `${grade}${suffix} Grade`;
-}
-
 function Toggle({ checked, onChange }) {
   return (
     <button
@@ -37,7 +35,7 @@ function Toggle({ checked, onChange }) {
       onClick={() => onChange(!checked)}
       className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${
         checked
-          ? "bg-[#10B981]"
+          ? "bg-emerald-500"
           : "border border-[var(--border)] bg-[var(--surface-muted)]"
       }`}
     >
@@ -50,14 +48,15 @@ function Toggle({ checked, onChange }) {
   );
 }
 
-function EditButton({ children = "Edit", onClick, danger = false }) {
+function ActionButton({ children = "Edit", onClick, danger = false, disabled = false }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-lg border px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
+      disabled={disabled}
+      className={`rounded-lg border px-3 py-1.5 text-[12.5px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
         danger
-          ? "border-[rgba(239,68,68,0.4)] text-[#EF4444] hover:bg-[rgba(239,68,68,0.08)]"
+          ? "border-rose-500/40 text-rose-500 hover:bg-rose-500/10"
           : "border-[var(--border)] text-[var(--foreground)] hover:bg-[var(--surface-muted)]"
       }`}
     >
@@ -137,7 +136,7 @@ function SelectInline({ value, onChange, options, ariaLabel }) {
   );
 }
 
-function HeroProfile({ name, email }) {
+function HeroProfile({ name, email, onEditName }) {
   const palette = colorForName(name || email || "?");
   return (
     <div className="flex items-center justify-between gap-4 border-b border-[var(--border)] px-5 py-5">
@@ -157,55 +156,14 @@ function HeroProfile({ name, email }) {
           )}
         </div>
       </div>
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          aria-label="Remove avatar"
-          className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border)] text-[#EF4444] transition-colors hover:bg-[rgba(239,68,68,0.08)]"
-        >
-          <svg
-            width="16"
-            height="16"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            viewBox="0 0 24 24"
-          >
-            <polyline points="3 6 5 6 21 6" />
-            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-            <path d="M10 11v6M14 11v6" />
-          </svg>
-        </button>
-        <button
-          type="button"
-          className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] px-3 py-1.5 text-[12.5px] font-semibold text-[var(--foreground)] transition-colors hover:bg-[var(--surface-muted)]"
-        >
-          <svg
-            width="14"
-            height="14"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            viewBox="0 0 24 24"
-          >
-            <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
-            <polyline points="16 7 12 3 8 7" />
-            <line x1="12" y1="3" x2="12" y2="15" />
-          </svg>
-          Upload
-        </button>
-      </div>
+      <ActionButton onClick={onEditName}>Edit name</ActionButton>
     </div>
   );
 }
 
 function ChildAvatar({ child, size = 36 }) {
   const palette = colorForName(child.name);
-  const initial = (child.initials?.[0] || child.name?.[0] || "?").toUpperCase();
+  const initial = (child.name?.[0] || "?").toUpperCase();
   return (
     <span
       className="flex flex-shrink-0 items-center justify-center rounded-full font-semibold"
@@ -224,281 +182,289 @@ function ChildAvatar({ child, size = 36 }) {
 
 const NAV_ITEMS = [
   { id: "general", label: "General" },
+  { id: "children", label: "Children" },
   { id: "notifications", label: "Notifications" },
   { id: "privacy", label: "Privacy & Security" },
-  { id: "children", label: "Children" },
-  { id: "restrictions", label: "App Restrictions" },
   { id: "support", label: "Support" },
   { id: "about", label: "About" },
 ];
 
-function GeneralPanel({ name, email, language, setLanguage }) {
-  return (
-    <>
-      <HeroProfile name={name} email={email} />
-      <FieldRow
-        label="Name"
-        value={name || "—"}
-        trailing={<EditButton />}
-      />
-      <FieldRow
-        label="Email"
-        value={email || "—"}
-        trailing={<EditButton />}
-      />
-      <FieldRow
-        label="Language"
-        value="App display language"
-        trailing={
-          <SelectInline
-            value={language}
-            onChange={setLanguage}
-            ariaLabel="Language"
-            options={[
-              { value: "en", label: "English" },
-              { value: "es", label: "Español" },
-              { value: "fr", label: "Français" },
-              { value: "vi", label: "Tiếng Việt" },
-            ]}
-          />
-        }
-        isLast
-      />
-    </>
-  );
-}
-
-function NotificationsPanel({ pushOn, setPushOn, alerts, setAlerts, weekly, setWeekly }) {
-  return (
-    <>
-      <FieldRow
-        label="Push notifications"
-        value="Receive activity updates on this device"
-        trailing={<Toggle checked={pushOn} onChange={setPushOn} />}
-      />
-      <FieldRow
-        label="Safety alerts"
-        value="Get notified when something needs attention"
-        trailing={<Toggle checked={alerts} onChange={setAlerts} />}
-      />
-      <FieldRow
-        label="Weekly digest"
-        value="Summary email every Monday"
-        trailing={<Toggle checked={weekly} onChange={setWeekly} />}
-        isLast
-      />
-    </>
-  );
-}
-
-function PrivacyPanel({ faceId, setFaceId }) {
-  return (
-    <>
-      <FieldRow
-        label="Face ID"
-        value="Use Face ID to unlock the app"
-        trailing={<Toggle checked={faceId} onChange={setFaceId} />}
-      />
-      <FieldRow
-        label="Export my data"
-        value="Download a copy of your family's data"
-        trailing={<EditButton>Export</EditButton>}
-      />
-      <FieldRow
-        label="Delete account"
-        value="Permanently remove your account and data"
-        trailing={<EditButton danger>Delete</EditButton>}
-        isLast
-      />
-    </>
-  );
-}
-
-function ChildrenPanel({ children }) {
-  return (
-    <>
-      {children.length === 0 ? (
-        <FieldRow
-          label="No children added"
-          value="Add your first child to start monitoring"
-          trailing={<EditButton>Add</EditButton>}
-          isLast
-        />
-      ) : (
-        children.map((c, i) => (
-          <div
-            key={c.id}
-            className={`flex items-center justify-between gap-4 px-5 py-4 ${
-              i === children.length - 1
-                ? ""
-                : "border-b border-[var(--border)]"
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <ChildAvatar child={c} />
-              <div className="min-w-0">
-                <p className="truncate text-[14px] font-semibold text-[var(--foreground)]">
-                  {c.name}
-                </p>
-                <p className="text-[12.5px] text-[var(--muted)]">
-                  {gradeFromAge(c.age) || `Age ${c.age}`}
-                </p>
-              </div>
-            </div>
-            <EditButton>Manage</EditButton>
-          </div>
-        ))
-      )}
-      <div className="border-t border-[var(--border)] px-5 py-3">
-        <button
-          type="button"
-          className="inline-flex items-center gap-2 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:text-[var(--accent-hover)]"
-        >
-          <svg
-            width="14"
-            height="14"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            viewBox="0 0 24 24"
-          >
-            <circle cx="12" cy="12" r="10" />
-            <path d="M12 8v8M8 12h8" />
-          </svg>
-          Add child
-        </button>
-      </div>
-    </>
-  );
-}
-
-function RestrictionsPanel({ appBlocking, setAppBlocking }) {
-  return (
-    <>
-      <FieldRow
-        label="App blocking"
-        value={appBlocking ? "Enabled" : "Disabled"}
-        trailing={<Toggle checked={appBlocking} onChange={setAppBlocking} />}
-      />
-      <FieldRow
-        label="Bedtime mode"
-        value="Pause apps overnight"
-        trailing={<EditButton>Configure</EditButton>}
-      />
-      <FieldRow
-        label="Screen time limits"
-        value="Daily caps per category"
-        trailing={<EditButton>Configure</EditButton>}
-        isLast
-      />
-    </>
-  );
-}
-
-function SupportPanel() {
-  return (
-    <>
-      <FieldRow
-        label="Help Center"
-        value="Browse guides and FAQs"
-        trailing={<EditButton>Open</EditButton>}
-      />
-      <FieldRow
-        label="Contact Support"
-        value="Reach our team by email"
-        trailing={<EditButton>Contact</EditButton>}
-        isLast
-      />
-    </>
-  );
-}
-
-function AboutPanel() {
-  return (
-    <>
-      <FieldRow
-        label="App version"
-        value="Guardiane for Web"
-        trailing={
-          <span className="inline-flex items-center rounded-full bg-[var(--surface-muted)] px-2.5 py-1 text-[11.5px] font-semibold text-[var(--muted)]">
-            v1.2.3
-          </span>
-        }
-      />
-      <FieldRow
-        label="Terms of Service"
-        trailing={<EditButton>View</EditButton>}
-      />
-      <FieldRow
-        label="Privacy Policy"
-        trailing={<EditButton>View</EditButton>}
-      />
-      <FieldRow
-        label="Log out"
-        value="Sign out of this device"
-        trailing={<EditButton danger>Log Out</EditButton>}
-        isLast
-      />
-    </>
-  );
-}
-
 export function SettingsTab({ data }) {
+  const router = useRouter();
+  const { signOut } = useAuth();
   const user = data?.user || null;
   const profile = data?.userProfile || null;
   const children = data?.children || [];
+  const familyId = profile?.familyId || null;
 
   const accountName =
     profile?.fullName || user?.displayName || user?.email?.split("@")[0] || "";
   const accountEmail = user?.email || "";
 
   const [section, setSection] = useState("general");
-  const [language, setLanguage] = useState("en");
-  const [pushOn, setPushOn] = useState(true);
-  const [alerts, setAlerts] = useState(true);
-  const [weekly, setWeekly] = useState(false);
-  const [faceId, setFaceId] = useState(true);
-  const [appBlocking, setAppBlocking] = useState(false);
+
+  // Preferences (localStorage-backed, matches iOS @AppStorage)
+  const [language, setLanguage] = usePreference("pref.language", "en");
+  const [notificationsEnabled, setNotificationsEnabled] = usePreference(
+    "pref.notificationsEnabled",
+    true,
+  );
+  const [biometricEnabled, setBiometricEnabled] = usePreference(
+    "pref.biometricEnabled",
+    false,
+  );
+  const [appBlocking, setAppBlocking] = usePreference("pref.appBlocking", false);
+  const [darkMode, setDarkMode] = useDarkMode();
+
+  // Modals
+  const [editName, setEditName] = useState(false);
+  const [addChildOpen, setAddChildOpen] = useState(false);
+  const [editChild, setEditChild] = useState(null);
+  const [supportMode, setSupportMode] = useState(null); // "help" | "contact" | null
+  const [deleteOpen, setDeleteOpen] = useState(false);
+
+  async function handleLogout() {
+    try {
+      await signOut();
+    } catch (_) {
+      // Silent — even if signOut throws (rare), still navigate away.
+    }
+    router.push("/login");
+  }
+
+  function handleExport() {
+    const blob = new Blob(
+      [
+        JSON.stringify(
+          {
+            exportedAt: new Date().toISOString(),
+            profile: profile ? { ...profile } : null,
+            children: children.map((c) => ({ ...c })),
+          },
+          (_key, value) => {
+            // Convert Firestore Timestamps for readability.
+            if (value && typeof value.toDate === "function") {
+              try {
+                return value.toDate().toISOString();
+              } catch {
+                return null;
+              }
+            }
+            return value;
+          },
+          2,
+        ),
+      ],
+      { type: "application/json" },
+    );
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `guardiane-export-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
 
   function renderPanel() {
     switch (section) {
       case "general":
         return (
-          <GeneralPanel
-            name={accountName}
-            email={accountEmail}
-            language={language}
-            setLanguage={setLanguage}
-          />
+          <>
+            <HeroProfile
+              name={accountName}
+              email={accountEmail}
+              onEditName={() => setEditName(true)}
+            />
+            <FieldRow
+              label="Dark mode"
+              value="Use a dark color scheme"
+              trailing={<Toggle checked={darkMode} onChange={setDarkMode} />}
+            />
+            <FieldRow
+              label="Language"
+              value="App display language"
+              trailing={
+                <SelectInline
+                  value={language}
+                  onChange={setLanguage}
+                  ariaLabel="Language"
+                  options={[
+                    { value: "en", label: "English" },
+                    { value: "es", label: "Spanish" },
+                    { value: "hi", label: "Hindi" },
+                  ]}
+                />
+              }
+              isLast
+            />
+          </>
         );
+
+      case "children":
+        return (
+          <>
+            {children.length === 0 ? (
+              <FieldRow
+                label="No children added"
+                value="Add your first child to start monitoring"
+                trailing={
+                  <ActionButton
+                    onClick={() => setAddChildOpen(true)}
+                    disabled={!familyId}
+                  >
+                    Add
+                  </ActionButton>
+                }
+                isLast
+              />
+            ) : (
+              children.map((c, i) => (
+                <div
+                  key={c.id}
+                  className={`flex items-center justify-between gap-4 px-5 py-4 ${
+                    i === children.length - 1
+                      ? ""
+                      : "border-b border-[var(--border)]"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <ChildAvatar child={c} />
+                    <div className="min-w-0">
+                      <p className="truncate text-[14px] font-semibold text-[var(--foreground)]">
+                        {c.name}
+                      </p>
+                      <p className="text-[12.5px] text-[var(--muted)]">
+                        {c.grade ||
+                          (typeof c.age === "number" ? `Age ${c.age}` : "—")}
+                      </p>
+                    </div>
+                  </div>
+                  <ActionButton onClick={() => setEditChild(c)}>
+                    Manage
+                  </ActionButton>
+                </div>
+              ))
+            )}
+            <div className="border-t border-[var(--border)] px-5 py-3">
+              <button
+                type="button"
+                onClick={() => setAddChildOpen(true)}
+                disabled={!familyId}
+                className="inline-flex items-center gap-2 text-[13px] font-semibold text-[var(--accent)] transition-colors hover:text-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M12 8v8M8 12h8" />
+                </svg>
+                Add child
+              </button>
+            </div>
+          </>
+        );
+
       case "notifications":
         return (
-          <NotificationsPanel
-            pushOn={pushOn}
-            setPushOn={setPushOn}
-            alerts={alerts}
-            setAlerts={setAlerts}
-            weekly={weekly}
-            setWeekly={setWeekly}
+          <FieldRow
+            label="Enable notifications"
+            value="Get activity updates and safety alerts on this device"
+            trailing={
+              <Toggle
+                checked={notificationsEnabled}
+                onChange={setNotificationsEnabled}
+              />
+            }
+            isLast
           />
         );
+
       case "privacy":
-        return <PrivacyPanel faceId={faceId} setFaceId={setFaceId} />;
-      case "children":
-        return <ChildrenPanel children={children} />;
-      case "restrictions":
         return (
-          <RestrictionsPanel
-            appBlocking={appBlocking}
-            setAppBlocking={setAppBlocking}
-          />
+          <>
+            <FieldRow
+              label="Biometric unlock"
+              value="Use Touch ID / Windows Hello where supported"
+              trailing={
+                <Toggle
+                  checked={biometricEnabled}
+                  onChange={setBiometricEnabled}
+                />
+              }
+            />
+            <FieldRow
+              label="App blocking"
+              value={appBlocking ? "Enabled" : "Disabled"}
+              trailing={<Toggle checked={appBlocking} onChange={setAppBlocking} />}
+            />
+            <FieldRow
+              label="Export my data"
+              value="Download a JSON copy of your family's data"
+              trailing={<ActionButton onClick={handleExport}>Export</ActionButton>}
+            />
+            <FieldRow
+              label="Delete account"
+              value="Permanently remove your account and data"
+              trailing={
+                <ActionButton danger onClick={() => setDeleteOpen(true)}>
+                  Delete
+                </ActionButton>
+              }
+              isLast
+            />
+          </>
         );
+
       case "support":
-        return <SupportPanel />;
+        return (
+          <>
+            <FieldRow
+              label="Help Center"
+              value="Browse guides and FAQs"
+              trailing={
+                <ActionButton onClick={() => setSupportMode("help")}>
+                  Open
+                </ActionButton>
+              }
+            />
+            <FieldRow
+              label="Contact Support"
+              value="Reach our team by email"
+              trailing={
+                <ActionButton onClick={() => setSupportMode("contact")}>
+                  Contact
+                </ActionButton>
+              }
+              isLast
+            />
+          </>
+        );
+
       case "about":
-        return <AboutPanel />;
+        return (
+          <>
+            <FieldRow
+              label="App version"
+              value="Guardiané for Web"
+              trailing={
+                <span className="inline-flex items-center rounded-full bg-[var(--surface-muted)] px-2.5 py-1 text-[11.5px] font-semibold text-[var(--muted)]">
+                  v{APP_VERSION}
+                </span>
+              }
+            />
+            <FieldRow
+              label="Log out"
+              value="Sign out of this device"
+              trailing={
+                <ActionButton danger onClick={handleLogout}>
+                  Log out
+                </ActionButton>
+              }
+              isLast
+            />
+          </>
+        );
+
       default:
         return null;
     }
@@ -536,6 +502,49 @@ export function SettingsTab({ data }) {
           {renderPanel()}
         </div>
       </div>
+
+      <EditNameModal
+        open={editName}
+        onClose={() => setEditName(false)}
+        currentName={accountName}
+        uid={user?.uid}
+        onSaved={() => {
+          // AuthContext listenToDoc will re-fire when users/{uid} updates,
+          // so no explicit refresh needed.
+        }}
+      />
+
+      <ChildFormModal
+        open={addChildOpen}
+        onClose={() => setAddChildOpen(false)}
+        parentUid={user?.uid}
+        familyId={familyId}
+        onSaved={() => {
+          // useDashboardData re-fetches children on next render of the tab,
+          // but it's also fine to leave stale — listener will reconcile.
+        }}
+      />
+
+      <ChildFormModal
+        open={!!editChild}
+        onClose={() => setEditChild(null)}
+        child={editChild}
+        parentUid={user?.uid}
+        familyId={familyId}
+        onSaved={() => setEditChild(null)}
+      />
+
+      <SupportModal
+        open={!!supportMode}
+        mode={supportMode || "help"}
+        onClose={() => setSupportMode(null)}
+      />
+
+      <DeleteAccountModal
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        onDeleted={() => router.push("/login")}
+      />
     </div>
   );
 }

@@ -178,11 +178,7 @@ function NavButton({ item, isActive, onClick }) {
       >
         {item.label}
       </span>
-      {item.badge && (
-        <span className="flex-shrink-0 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--danger)] text-[8px] font-semibold text-white">
-          {item.badge}
-        </span>
-      )}
+     
     </button>
   );
 }

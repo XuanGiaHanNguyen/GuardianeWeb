@@ -16,6 +16,8 @@ import {
   serverTimestamp,
   Timestamp,
   writeBatch,
+  arrayUnion,
+  arrayRemove,
 } from 'firebase/firestore'
 import { db } from './firebase'
 
@@ -210,6 +212,56 @@ export async function provisionParentAndFamily({ uid, email, fullName, children 
   await batch2.commit()
 
   return { familyId, childIds }
+}
+
+/**
+ * Add a child to the parent's existing family. Mirrors iOS
+ * `OnboardingViewModel.saveChild` for the create path: writes to
+ * `children`, appends the id to `families.childIds`, and sets the QR code.
+ * Returns the new child id.
+ */
+export async function createChild({ parentUid, familyId, name, bday, gender, grade }) {
+  if (!parentUid || !familyId) throw new Error('Missing parentUid or familyId')
+  if (!name) throw new Error('Child name is required')
+
+  const childRef = doc(collection(db, COLLECTIONS.CHILDREN))
+  await setDoc(childRef, {
+    name: name.trim(),
+    age: computeAge(bday),
+    birthDate: toBirthDateString(bday),
+    gender: gender || null,
+    grade: grade || null,
+    qrCode: generateChildQRCode(parentUid, name),
+    familyId,
+    parentIds: [parentUid],
+    isActive: true,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  })
+  await updateDoc(doc(db, COLLECTIONS.FAMILIES, familyId), {
+    childIds: arrayUnion(childRef.id),
+    updatedAt: serverTimestamp(),
+  })
+  return childRef.id
+}
+
+/** Patch a child document. */
+export async function updateChild(childId, patch) {
+  await updateDoc(doc(db, COLLECTIONS.CHILDREN, childId), {
+    ...patch,
+    updatedAt: serverTimestamp(),
+  })
+}
+
+/** Delete a child: remove the doc and unlink from family. */
+export async function deleteChild(childId, familyId) {
+  if (familyId) {
+    await updateDoc(doc(db, COLLECTIONS.FAMILIES, familyId), {
+      childIds: arrayRemove(childId),
+      updatedAt: serverTimestamp(),
+    }).catch(() => {})
+  }
+  await deleteDoc(doc(db, COLLECTIONS.CHILDREN, childId))
 }
 
 /**
