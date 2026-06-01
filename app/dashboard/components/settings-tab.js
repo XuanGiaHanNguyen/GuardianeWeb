@@ -8,6 +8,7 @@ import { ChildFormModal } from "./child-form-modal";
 import { EditNameModal } from "./edit-name-modal";
 import { DeleteAccountModal } from "./delete-account-modal";
 import { SupportModal } from "./support-modal";
+import { AppBlockManagerModal } from "./app-block-manager-modal";
 
 const APP_VERSION = "1.0.0 (web)";
 
@@ -213,8 +214,13 @@ export function SettingsTab({ data }) {
     "pref.biometricEnabled",
     false,
   );
-  const [appBlocking, setAppBlocking] = usePreference("pref.appBlocking", false);
   const [darkMode, setDarkMode] = useDarkMode();
+
+  // Total apps blocked across all children — drives the App blocking summary.
+  const totalBlockedApps = children.reduce(
+    (sum, c) => sum + (Array.isArray(c.blockedApps) ? c.blockedApps.length : 0),
+    0,
+  );
 
   // Modals
   const [editName, setEditName] = useState(false);
@@ -222,6 +228,7 @@ export function SettingsTab({ data }) {
   const [editChild, setEditChild] = useState(null);
   const [supportMode, setSupportMode] = useState(null); // "help" | "contact" | null
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [appBlockOpen, setAppBlockOpen] = useState(false);
 
   async function handleLogout() {
     try {
@@ -394,8 +401,19 @@ export function SettingsTab({ data }) {
             />
             <FieldRow
               label="App blocking"
-              value={appBlocking ? "Enabled" : "Disabled"}
-              trailing={<Toggle checked={appBlocking} onChange={setAppBlocking} />}
+              value={
+                totalBlockedApps > 0
+                  ? `${totalBlockedApps} app${totalBlockedApps === 1 ? "" : "s"} blocked across your children`
+                  : "Block distracting apps on your children's devices"
+              }
+              trailing={
+                <ActionButton
+                  onClick={() => setAppBlockOpen(true)}
+                  disabled={children.length === 0}
+                >
+                  Manage
+                </ActionButton>
+              }
             />
             <FieldRow
               label="Export my data"
@@ -544,6 +562,12 @@ export function SettingsTab({ data }) {
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}
         onDeleted={() => router.push("/login")}
+      />
+
+      <AppBlockManagerModal
+        open={appBlockOpen}
+        onClose={() => setAppBlockOpen(false)}
+        childList={children}
       />
     </div>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Sidebar } from "./components/sidebar";
 import { OverviewTab } from "./components/overview-tab";
@@ -33,6 +33,20 @@ function userInitialFrom(profile, user) {
 }
 
 export default function DashboardPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-screen items-center justify-center bg-[var(--background)] text-sm text-[var(--muted)]">
+          Loading…
+        </div>
+      }
+    >
+      <DashboardContent />
+    </Suspense>
+  );
+}
+
+function DashboardContent() {
   const searchParams = useSearchParams();
   const tabFromUrl = searchParams.get("tab");
   const initialTab = VALID_TABS.has(tabFromUrl) ? tabFromUrl : "overview";

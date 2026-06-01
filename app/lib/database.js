@@ -245,6 +245,22 @@ export async function updateChild(childId, patch) {
   })
 }
 
+/**
+ * Write the app-restriction policy onto a child document. Mirrors the iOS
+ * `Child` model fields `blockedApps: [String]` and `screenTimeLimit: Int`,
+ * which the child's device app reads to enforce restrictions (the web can't
+ * enforce locally the way iOS ManagedSettings does).
+ *   blockedApps      — array of app ids from lib/apps.js
+ *   screenTimeLimit  — daily limit in minutes (0 = no limit)
+ */
+export async function updateChildRestrictions(childId, { blockedApps, screenTimeLimit }) {
+  if (!childId) throw new Error('Missing childId')
+  const patch = { updatedAt: serverTimestamp() }
+  if (Array.isArray(blockedApps)) patch.blockedApps = blockedApps
+  if (typeof screenTimeLimit === 'number') patch.screenTimeLimit = screenTimeLimit
+  await updateDoc(doc(db, COLLECTIONS.CHILDREN, childId), patch)
+}
+
 /** Delete a child: remove the doc and unlink from family. */
 export async function deleteChild(childId, familyId) {
   if (familyId) {
@@ -319,6 +335,27 @@ export async function getMoodEntriesForChildInRange(childId, fromDate, toDate) {
     .filter((r) => {
       const ms = r.timestamp?.toMillis?.()
       return typeof ms === 'number' && ms >= fromMs && ms < toMs
+    })
+  rows.sort((a, b) => (a.timestamp?.toMillis?.() ?? 0) - (b.timestamp?.toMillis?.() ?? 0))
+  return rows
+}
+
+/**
+ * All mood entries for a child within the last `days` (default 7), oldest
+ * first. Mirrors iOS MoodViewModel.loadMoodEntries: fetch by childId, then
+ * filter client-side by cutoff to avoid a composite index.
+ */
+export async function getMoodEntriesForChild(childId, days = 7) {
+  if (!childId) return []
+  const snap = await getDocs(
+    query(collection(db, COLLECTIONS.MOOD_ENTRIES), where('childId', '==', childId)),
+  )
+  const cutoff = Date.now() - days * 86_400_000
+  const rows = snap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .filter((r) => {
+      const ms = r.timestamp?.toMillis?.()
+      return typeof ms === 'number' && ms >= cutoff
     })
   rows.sort((a, b) => (a.timestamp?.toMillis?.() ?? 0) - (b.timestamp?.toMillis?.() ?? 0))
   return rows

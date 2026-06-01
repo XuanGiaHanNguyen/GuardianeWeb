@@ -9,7 +9,7 @@ import { LearningModulesCarousel } from "./learning-modules-carousel";
 import { RecentActivityCard } from "./recent-activity-card";
 import { ChildFormModal } from "./child-form-modal";
 import { EmergencyCallModal } from "./emergency-call-modal";
-import { MoodReportModal } from "./mood-report-modal";
+import { MoodAnalyticsModal } from "./mood-analytics-modal";
 
 function firstName(profile, user) {
   const full = profile?.fullName || user?.displayName || "";
@@ -113,7 +113,7 @@ export function OverviewTab({ data, onNavigate, onOpenModule }) {
         onConfirm={placeEmergencyCall}
       />
 
-      <MoodReportModal
+      <MoodAnalyticsModal
         open={reportOpen}
         onClose={() => setReportOpen(false)}
         child={selectedChild}
