@@ -159,12 +159,10 @@ function FormContent({
   const [moduleId, setModuleId] = useState(initialModuleId || "");
   const [priority, setPriority] = useState(ASSIGNMENT_PRIORITY.MEDIUM);
 
-  const oneWeekFromNow = useMemo(
-    () => new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-    [],
-  );
   const [hasDueDate, setHasDueDate] = useState(false);
-  const [dueDate, setDueDate] = useState(toDateInputValue(oneWeekFromNow));
+  const [dueDate, setDueDate] = useState(() =>
+    toDateInputValue(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)),
+  );
 
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);

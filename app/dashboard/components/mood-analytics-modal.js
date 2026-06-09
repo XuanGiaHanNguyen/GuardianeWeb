@@ -55,7 +55,6 @@ function Content({ onClose, child }) {
   useEffect(() => {
     if (!child?.id) return;
     let cancelled = false;
-    setLoading(true);
     getMoodEntriesForChild(child.id, days)
       .then((rows) => {
         if (!cancelled) setEntries(rows);

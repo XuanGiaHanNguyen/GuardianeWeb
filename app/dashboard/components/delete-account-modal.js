@@ -8,7 +8,7 @@ import { softDeleteAccountData } from "../../lib/database";
 
 const CONFIRM_PHRASE = "DELETE";
 
-export function DeleteAccountModal({ open, onClose, onDeleted, uid, familyId, children }) {
+export function DeleteAccountModal({ open, onClose, onDeleted, uid, familyId, childList }) {
   if (!open || typeof document === "undefined") return null;
   return (
     <Content
@@ -16,12 +16,12 @@ export function DeleteAccountModal({ open, onClose, onDeleted, uid, familyId, ch
       onDeleted={onDeleted}
       uid={uid}
       familyId={familyId}
-      children={children}
+      childList={childList}
     />
   );
 }
 
-function Content({ onClose, onDeleted, uid, familyId, children }) {
+function Content({ onClose, onDeleted, uid, familyId, childList }) {
   const [confirmText, setConfirmText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
@@ -50,7 +50,7 @@ function Content({ onClose, onDeleted, uid, familyId, children }) {
       // Tear down Firestore data while still authenticated (rules require it),
       // then remove the auth user. softDeleteAccountData is idempotent, so a
       // retry after re-login is safe.
-      await softDeleteAccountData({ uid, familyId, children });
+      await softDeleteAccountData({ uid, familyId, children: childList });
       await deleteUser(auth.currentUser);
       onDeleted?.();
     } catch (err) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   getModuleWithLessons,
   assignModule,
@@ -71,28 +71,28 @@ export function ModuleDetailView({
   onOpenLesson,
 }) {
   const [module_, setModule] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState(null);
   const [assigningChildId, setAssigningChildId] = useState(null);
   const [assignError, setAssignError] = useState(null);
 
-  const load = useCallback(async () => {
-    if (!moduleId) return;
-    setLoading(true);
-    setErrorMessage(null);
-    try {
-      const result = await getModuleWithLessons(moduleId);
-      setModule(result);
-    } catch (err) {
-      setErrorMessage(err.message || "Failed to load module");
-    } finally {
-      setLoading(false);
-    }
-  }, [moduleId]);
-
   useEffect(() => {
-    load();
-  }, [load]);
+    if (!moduleId) return;
+    let cancelled = false;
+    getModuleWithLessons(moduleId)
+      .then((result) => {
+        if (!cancelled) setModule(result);
+      })
+      .catch((err) => {
+        if (!cancelled) setErrorMessage(err.message || "Failed to load module");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [moduleId]);
 
   const isParentModule = module_?.category === MODULE_CATEGORIES.PARENT;
   const lessons = module_?.lessons || [];

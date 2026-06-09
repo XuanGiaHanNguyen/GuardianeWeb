@@ -234,8 +234,14 @@ function QuestionEditor({ q, index, onChange, onRemove }) {
   );
 }
 
-export function CreateModuleModal({
-  open,
+export function CreateModuleModal({ open, ...props }) {
+  if (!open || typeof document === "undefined") return null;
+  return <Content {...props} />;
+}
+
+// Mounted only while open, so each open starts from fresh state — no
+// reset-on-close effect needed.
+function Content({
   onClose,
   onCreated,
   childList = [],
@@ -260,7 +266,6 @@ export function CreateModuleModal({
   }, [title, submitting, creatorId, questions.length, moduleType, targetSpecific, selectedChildIds.length]);
 
   useEffect(() => {
-    if (!open) return undefined;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     function onKeyDown(event) {
@@ -271,21 +276,7 @@ export function CreateModuleModal({
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [open, onClose]);
-
-  useEffect(() => {
-    if (!open) {
-      setTitle("");
-      setDescription("");
-      setModuleType(MODULE_CATEGORIES.CHILD);
-      setTargetSpecific(false);
-      setSelectedChildIds([]);
-      setQuestionType(QUESTION_TYPES.MULTIPLE_CHOICE);
-      setQuestions([]);
-      setSubmitting(false);
-      setErrorMessage(null);
-    }
-  }, [open]);
+  }, [onClose]);
 
   function handleAddQuestion() {
     setQuestions((prev) => [...prev, emptyQuestion(questionType)]);
@@ -356,8 +347,6 @@ export function CreateModuleModal({
       setSubmitting(false);
     }
   }
-
-  if (!open || typeof document === "undefined") return null;
 
   const modal = (
     <div

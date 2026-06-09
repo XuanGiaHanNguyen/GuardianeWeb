@@ -563,7 +563,7 @@ export function SettingsTab({ data }) {
         onClose={() => setDeleteOpen(false)}
         uid={user?.uid}
         familyId={familyId}
-        children={children}
+        childList={children}
         onDeleted={() => router.push("/login")}
       />
 

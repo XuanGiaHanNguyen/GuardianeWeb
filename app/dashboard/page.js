@@ -70,13 +70,17 @@ function DashboardContent() {
     }
   }, [activeNav]);
 
-  // If the user clicks the same Settings link a second time (URL→state).
-  useEffect(() => {
+  // Keep the active tab in sync with the URL (e.g. clicking the same Settings
+  // link again, or a shared deep link). Adjusting state during render is the
+  // documented pattern for syncing to a changing input — the equality guard
+  // keeps it from looping. See https://react.dev/learn/you-might-not-need-an-effect
+  const [lastSyncedTab, setLastSyncedTab] = useState(tabFromUrl);
+  if (tabFromUrl !== lastSyncedTab) {
+    setLastSyncedTab(tabFromUrl);
     if (VALID_TABS.has(tabFromUrl) && tabFromUrl !== activeNav) {
       setActiveNav(tabFromUrl);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tabFromUrl]);
+  }
 
   const openLearningModule = (moduleId) => {
     setPendingModuleId(moduleId);

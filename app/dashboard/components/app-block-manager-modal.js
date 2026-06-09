@@ -43,11 +43,19 @@ export function AppBlockManagerModal({
 }
 
 function Content({ onClose, childList, initialChildId, onSaved }) {
-  const [selectedChildId, setSelectedChildId] = useState(
-    initialChildId || childList[0]?.id || null,
+  const initialSelectedId = initialChildId || childList[0]?.id || null;
+  const initialChild =
+    childList.find((c) => c.id === initialSelectedId) || null;
+
+  const [selectedChildId, setSelectedChildId] = useState(initialSelectedId);
+  const [blocked, setBlocked] = useState(
+    () => new Set(initialChild?.blockedApps || []),
   );
-  const [blocked, setBlocked] = useState(() => new Set());
-  const [screenTimeLimit, setScreenTimeLimit] = useState(0);
+  const [screenTimeLimit, setScreenTimeLimit] = useState(() =>
+    typeof initialChild?.screenTimeLimit === "number"
+      ? initialChild.screenTimeLimit
+      : 0,
+  );
   const [saving, setSaving] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
 
@@ -56,21 +64,16 @@ function Content({ onClose, childList, initialChildId, onSaved }) {
     [childList, selectedChildId],
   );
 
-  // Load the selected child's existing policy whenever it changes.
-  useEffect(() => {
-    if (!selectedChild) {
-      setBlocked(new Set());
-      setScreenTimeLimit(0);
-      return;
-    }
-    setBlocked(new Set(selectedChild.blockedApps || []));
+  // Switching child loads that child's existing policy into the editable form.
+  function selectChild(id) {
+    const next = childList.find((c) => c.id === id) || null;
+    setSelectedChildId(id);
+    setBlocked(new Set(next?.blockedApps || []));
     setScreenTimeLimit(
-      typeof selectedChild.screenTimeLimit === "number"
-        ? selectedChild.screenTimeLimit
-        : 0,
+      typeof next?.screenTimeLimit === "number" ? next.screenTimeLimit : 0,
     );
     setSavedFlash(false);
-  }, [selectedChild]);
+  }
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -193,7 +196,7 @@ function Content({ onClose, childList, initialChildId, onSaved }) {
                     <button
                       key={c.id}
                       type="button"
-                      onClick={() => setSelectedChildId(c.id)}
+                      onClick={() => selectChild(c.id)}
                       className={`rounded-full border px-3.5 py-1.5 text-[13px] font-medium transition-colors ${
                         c.id === selectedChildId
                           ? "border-[var(--accent)] bg-[var(--accent-bg)] text-[var(--accent)]"

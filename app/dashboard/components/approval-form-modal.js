@@ -73,9 +73,12 @@ function ApprovalContent({ request, childName, onClose, onApproved }) {
     };
   }, [onClose]);
 
+  // Capture "now" once on mount so render stays pure; the expiry then tracks
+  // the chosen time limit off that fixed base.
+  const [nowMs] = useState(() => Date.now());
   const expiresAt = useMemo(
-    () => new Date(Date.now() + timeLimit * 1000),
-    [timeLimit],
+    () => new Date(nowMs + timeLimit * 1000),
+    [nowMs, timeLimit],
   );
 
   async function handleApprove() {

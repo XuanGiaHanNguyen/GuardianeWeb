@@ -44,7 +44,6 @@ export function useDashboardData() {
   useEffect(() => {
     if (!uid) return
     let cancelled = false
-    setChildrenLoading(true)
     getChildrenForParent(uid)
       .then((rows) => {
         if (cancelled) return
@@ -65,12 +64,8 @@ export function useDashboardData() {
 
   // Family-scoped reads (alerts + assignments + modules)
   useEffect(() => {
-    if (!familyId) {
-      setFamilyLoading(false)
-      return
-    }
+    if (!familyId) return
     let cancelled = false
-    setFamilyLoading(true)
     Promise.allSettled([
       getAlertsForFamily(familyId, { max: 10 }),
       getAlertsForFamily(familyId, { activeOnly: true, max: 50 }),
@@ -94,10 +89,7 @@ export function useDashboardData() {
 
   // Mood for the selected child
   useEffect(() => {
-    if (!selectedChildId) {
-      setTodaysMood(null)
-      return
-    }
+    if (!selectedChildId) return
     let cancelled = false
     getTodaysMoodForChild(selectedChildId)
       .then((m) => {
@@ -135,7 +127,7 @@ export function useDashboardData() {
     completedAssignmentsCount,
     inProgressAssignmentsCount,
 
-    // status
-    loading: authLoading || childrenLoading || familyLoading,
+    // status — familyLoading only matters once we actually have a family to load.
+    loading: authLoading || childrenLoading || (familyId ? familyLoading : false),
   }
 }

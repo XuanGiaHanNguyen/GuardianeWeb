@@ -326,32 +326,54 @@ export function LearningTab({ data, initialModuleId, onInitialModuleConsumed }) 
   const [activeLessonIsParent, setActiveLessonIsParent] = useState(false);
   const [quizOpen, setQuizOpen] = useState(false);
 
-  useEffect(() => {
-    if (!initialModuleId) return;
+  // Honor an incoming "open this module" request. Apply it during render
+  // (syncing local view to a changing prop), then tell the parent to clear the
+  // request from an effect. Tracking the consumed id — and resetting it once the
+  // request clears — lets the same module be reopened later.
+  const [consumedModuleId, setConsumedModuleId] = useState(null);
+  if (initialModuleId && initialModuleId !== consumedModuleId) {
+    setConsumedModuleId(initialModuleId);
     setActiveModuleId(initialModuleId);
     setView("module");
-    onInitialModuleConsumed?.();
+  } else if (!initialModuleId && consumedModuleId !== null) {
+    setConsumedModuleId(null);
+  }
+
+  useEffect(() => {
+    if (initialModuleId) onInitialModuleConsumed?.();
   }, [initialModuleId, onInitialModuleConsumed]);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState(null);
 
+  // Promise-chain (not async/await) so every state write lives in a .then/.finally
+  // callback — safe to run straight from an effect. `refresh` wraps it with the
+  // synchronous loading/error reset for event-driven reloads (create/assign).
+  const loadModules = useCallback(
+    () =>
+      fetchAllModules()
+        .then((rows) => {
+          setModules(rows);
+          setErrorMessage(null);
+        })
+        .catch((err) => {
+          setErrorMessage(err.message || "Failed to load modules");
+        })
+        .finally(() => {
+          setLoading(false);
+        }),
+    [],
+  );
+
   const refresh = useCallback(async () => {
     setLoading(true);
     setErrorMessage(null);
-    try {
-      const rows = await fetchAllModules();
-      setModules(rows);
-    } catch (err) {
-      setErrorMessage(err.message || "Failed to load modules");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    await loadModules();
+  }, [loadModules]);
 
   useEffect(() => {
-    refresh();
-  }, [refresh]);
+    loadModules();
+  }, [loadModules]);
 
   const uid = user?.uid;
   const creatorName =
