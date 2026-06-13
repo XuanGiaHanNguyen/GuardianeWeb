@@ -53,6 +53,9 @@ function DashboardContent() {
 
   const [activeNav, setActiveNav] = useState(initialTab);
   const [pendingModuleId, setPendingModuleId] = useState(null);
+  // Give the chat as much room as possible: the main sidebar starts collapsed
+  // whenever the chatbot tab is open.
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(initialTab === "chatbot");
   const data = useDashboardData();
 
   // Sync the URL ?tab= when the user clicks around. replaceState (not push)
@@ -80,6 +83,15 @@ function DashboardContent() {
     if (VALID_TABS.has(tabFromUrl) && tabFromUrl !== activeNav) {
       setActiveNav(tabFromUrl);
     }
+  }
+
+  // Auto-collapse the main sidebar when entering the chatbot tab, and restore
+  // it on the way out. Tracked on tab change (same during-render guard) so the
+  // user can still manually toggle it while staying on a tab.
+  const [lastCollapseTab, setLastCollapseTab] = useState(activeNav);
+  if (activeNav !== lastCollapseTab) {
+    setLastCollapseTab(activeNav);
+    setSidebarCollapsed(activeNav === "chatbot");
   }
 
   const openLearningModule = (moduleId) => {
@@ -135,6 +147,8 @@ function DashboardContent() {
             childrenLoading={data.childrenLoading}
             selectedChildId={data.selectedChildId}
             setSelectedChildId={data.setSelectedChildId}
+            collapsed={sidebarCollapsed}
+            onToggleCollapsed={() => setSidebarCollapsed((c) => !c)}
           />
           <main className="flex-1 overflow-y-auto">
             <div className="mx-auto">{renderContent()}</div>
