@@ -114,6 +114,15 @@ export default function GuardianePage() {
                 />
                 <span className="store-btn-title">Google Play</span>
               </a>
+              <Link
+                href="/chatbot"
+                className="focus-visible-ring accent-btn rounded-full px-6 py-3 text-sm font-medium"
+              >
+                Chat with JoJo
+                <span className="pill-btn-icon" aria-hidden>
+                  ↗
+                </span>
+              </Link>
             </div>
             <div className="flex flex-wrap justify-center gap-2 pt-1">
               <span className="rounded-full border border-[var(--button-border)] bg-[var(--button-bg)] px-3 py-1 text-xs text-[var(--muted)]">

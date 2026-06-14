@@ -168,6 +168,15 @@ export default function Home() {
                 >
                   Explore Guardiané
                 </Link>
+                <Link
+                  href="/chatbot"
+                  className="focus-visible-ring accent-btn rounded-sm px-6 py-2.5 text-[0.78rem] font-medium uppercase tracking-[0.12em]"
+                >
+                  Chat with JoJo
+                  <span className="pill-btn-icon" aria-hidden>
+                    ↗
+                  </span>
+                </Link>
                 <PartnerWithUsModal
                   email={contactEmail}
                   className="focus-visible-ring outline-btn rounded-sm px-6 py-2.5 text-[0.78rem] font-medium uppercase tracking-[0.12em]"
