@@ -356,8 +356,13 @@ export async function updateChild(childId, patch) {
 /** Delete a child document and unlink it from the parent. */
 export async function deleteChild(childId, parentUid) {
   if (parentUid) {
+    // Recount rather than decrement so a previously stale value self-heals.
+    const remaining = (
+      await getChildrenForParent(parentUid).catch(() => null)
+    )?.filter((c) => c.id !== childId).length;
     await updateDoc(doc(db, COLLECTIONS.USERS, parentUid), {
       linkedChildren: arrayRemove(childId),
+      ...(typeof remaining === "number" && { numberOfChildren: remaining }),
       updatedAt: serverTimestamp(),
     }).catch(() => {});
   }
